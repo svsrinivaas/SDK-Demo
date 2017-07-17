@@ -29,100 +29,70 @@ type SimpleChaincode struct {
 }
 var EVENT_COUNTER = "event_counter"
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var err error
+	var user, operation, desc, time string    // Entities
+	//var err error
 
 	if len(args) != 4 {
 		return nil, errors.New("Incorrect number of arguments. Expecting 4")
 	}
 
 	// Initialize the chaincode
-	A = args[0]
-	Aval, err = strconv.Atoi(args[1])
-	if err != nil {
-		return nil, errors.New("Expecting integer value for asset holding")
-	}
-	B = args[2]
-	Bval, err = strconv.Atoi(args[3])
-	if err != nil {
-		return nil, errors.New("Expecting integer value for asset holding")
-	}
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
+	user = args[0]
+	operation = args[1]
+	desc = args[2]
+	time = args[3]
+	
+	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
 
 	// Write the state to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
+	/*ok, err = stub.InsertRow(user, shim.Row{
+		Columns: []*shim.Column{
+			&shim.Column{Value: &shim.Column_String_{String_: user}},
+			&shim.Column{Value: &shim.Column_String{String_: operation}},
+			&shim.Column{Value: &shim.Column_String_{String_: desc}},
+			&shim.Column{Value: &shim.Column_String{String_: time}}},
+	})
+    
+	err = stub.PutState(EVENT_COUNTER, []byte("1"))
 	if err != nil {
 		return nil, err
-	}
-
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-	if err != nil {
-		return nil, err
-	}
-        err = stub.PutState(EVENT_COUNTER, []byte("1"))
-	if err != nil {
-		return nil, err
-	}
+	}*/
 	return nil, nil
 }
 
-// Transaction makes payment of X units from A to B
+// Transaction makes an entry of audit log 
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	if function == "delete" {
-		// Deletes an entity from its state
-		return t.delete(stub, args)
-	}
-
-	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var X int          // Transaction value
+	var user, operation, desc, time string    // Entities
 	var err error
 
-	if len(args) != 3 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 3")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4")
 	}
 
-	A = args[0]
-	B = args[1]
+	user = args[0]
+	operation = args[1]
+	desc = args[2]
+	time = args[3]
 
-	// Get the state from the ledger
-	Avalbytes, err := stub.GetState(A)
-	if err != nil {
-		return nil, errors.New("Failed to get state")
-	}
-	if Avalbytes == nil {
-		return nil, errors.New("Entity not found")
-	}
-	Aval, _ = strconv.Atoi(string(Avalbytes))
+	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
+	
+	// Write the state to the ledger
+	ok, err := stub.InsertRow(user, shim.Row{
+		Columns: []*shim.Column{
+			&shim.Column{Value: &shim.Column_String_{String_: user}},
+			&shim.Column{Value: &shim.Column_String_{String_: operation}},
+			&shim.Column{Value: &shim.Column_String_{String_: desc}},
+			&shim.Column{Value: &shim.Column_String_{String_: time}}},
+	})
 
-	Bvalbytes, err := stub.GetState(B)
-	if err != nil {
-		return nil, errors.New("Failed to get state")
-	}
-	if Bvalbytes == nil {
-		return nil, errors.New("Entity not found")
-	}
-	Bval, _ = strconv.Atoi(string(Bvalbytes))
-
-	// Perform the execution
-	X, err = strconv.Atoi(args[2])
-	Aval = Aval - X
-	Bval = Bval + X
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
-
-	// Write the state back to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	if err != nil {
-		return nil, err
+	if !ok && err == nil {
+		return nil, errors.New("User log already exists.")
 	}
 
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-  	if err != nil {
-		return nil, err
-	}
+	fmt.Printf("Invoke...done!")
+	
 	//Event based
-        b, err := stub.GetState(EVENT_COUNTER)
+    b, err := stub.GetState(EVENT_COUNTER)
 	if err != nil {
 		return nil, errors.New("Failed to get state")
 	}
@@ -142,52 +112,36 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	return nil, nil
 }
 
-// Deletes an entity from state
-func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
-	}
-
-	A := args[0]
-
-	// Delete the key from the state in ledger
-	err := stub.DelState(A)
-	if err != nil {
-		return nil, errors.New("Failed to delete state")
-	}
-
-	return nil, nil
-}
-
 // Query callback representing the query of a chaincode
 func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	if function != "query" {
 		return nil, errors.New("Invalid query function name. Expecting \"query\"")
 	}
-	var A string // Entities
+	var userName string
+	//var user, opr, desc, time string // Entities
 	var err error
+	userName = args[0]
 
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
 	}
 
-	A = args[0]
-
-	// Get the state from the ledger
-	Avalbytes, err := stub.GetState(A)
+	var columns []shim.Column
+	row, err := stub.GetRow(userName, columns)
 	if err != nil {
-		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
-		return nil, errors.New(jsonResp)
+		return nil, fmt.Errorf("Failed retrieving log for [%s]: [%s]", userName, err)
 	}
 
-	if Avalbytes == nil {
-		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
-		return nil, errors.New(jsonResp)
-	}
+	user := row.Columns[0].GetBytes()
+	opr := row.Columns[1].GetBytes()
+	desc := row.Columns[2].GetBytes()
+	time := row.Columns[3].GetBytes()
+	
+	fmt.Printf("row value : %$, %$, %$, %$", user, opr, desc, time)
 
-	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
-	fmt.Printf("Query Response:%s\n", jsonResp)
-	return Avalbytes, nil
+	//jsonResp := "{\"user\":\"" + user + "\",\"operation\":\"" + opr + "\"}"
+	//fmt.Printf("Query Response:%s\n", jsonResp)
+	return user, nil
 }
 
 func main() {
