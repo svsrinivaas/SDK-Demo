@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"encoding/json"
 	//"bytes"
 	
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -130,36 +131,55 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	if function != "query" {
 		return nil, errors.New("Invalid query function name. Expecting \"query\"")
 	}
-	var userName string
-	userName = args[0]
+	var user string
+	user = args[0]
 
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
 	}
-	fmt.Printf("query key : %s", userName)
+	fmt.Printf("query key : %s", user)
 	
 	var err error
 	var keys []shim.Column
-	col1 := shim.Column{Value: &shim.Column_String_{String_: userName}}	
+	col1 := shim.Column{Value: &shim.Column_String_{String_: user}}	
 	keys = append(keys, col1)
 	fmt.Printf("keys : %s", keys)
 	
-	row, err := stub.GetRow("auditlog", keys)
+	rowChannel, err := stub.GetRows("auditlog", keys)
 	
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving log for [%s]: [%s]", userName, err)
+		return nil, fmt.Errorf("Failed retrieving log for [%s]: [%s]", user, err)
 	}
-
+	var rows []shim.Row
+	for {
+         select {
+            case row, ok := <-rowChannel:
+                if !ok {
+                    rowChannel = nil
+                } else {
+                    rows = append(rows, row)
+                }
+            }
+            if rowChannel == nil {
+                break
+         }
+    }
+	/*	
 	user := row.Columns[0].GetBytes()
 	opr := row.Columns[1].GetBytes()
 	desc := row.Columns[2].GetBytes()
 	time := row.Columns[3].GetBytes()
 	
 	fmt.Printf("row value : %s, %s, %s, %s", user, opr, desc, time)
+	*/
 	
-	//jsonResp := "{\"user\":\"" + user + "\",\"operation\":\"" + opr + "\"}"
-	//fmt.Printf("Query Response:%s\n", jsonResp)
-	return []byte(userName), nil
+	jsonRows, err := json.Marshal(rows)
+        if err != nil {
+            return nil, fmt.Errorf("auditlog read operation failed. Error marshaling JSON: %s", err)
+        }
+
+    return jsonRows, nil
+	//return []byte(user), nil
 }
 
 func main() {
