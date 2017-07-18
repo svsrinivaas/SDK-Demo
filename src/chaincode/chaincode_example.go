@@ -166,6 +166,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	keys = append(keys, col1)
 	fmt.Printf("keys : %s", keys)
 	
+	/*
 	rowChannel, err := stub.GetRows("dummylog", keys)
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving dummy log for [%s]: [%s]", user, err)
@@ -176,14 +177,15 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	if err != nil {
 		return nil, fmt.Errorf("dummy log read operation failed. Error marshaling JSON: %s", err)
 	}
+	*/
 	
-	rowChannel, err = stub.GetRows("auditlog", keys)
+	rowChannel, err := stub.GetRows("auditlog", keys)
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving audit log for [%s]: [%s]", user, err)
 	}
 	
-	rows, err = getRows(rowChannel)	
-	jsonRows, err = json.Marshal(rows)
+	rows, err := getRows(rowChannel)	
+	jsonRows, err := json.Marshal(rows)
 	if err != nil {
 		return nil, fmt.Errorf("audit log read operation failed. Error marshaling JSON: %s", err)
 	}
