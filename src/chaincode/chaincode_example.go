@@ -78,7 +78,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
 	
 	// Write the state to the ledger
-	ok, err := stub.InsertRow(user, shim.Row{
+	ok, err := stub.InsertRow("auditlog", shim.Row{
 		Columns: []*shim.Column{
 			&shim.Column{Value: &shim.Column_String_{String_: user}},
 			&shim.Column{Value: &shim.Column_String_{String_: operation}},
@@ -125,10 +125,13 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
 	}
 
-	/*
 	var err error
-	var columns []shim.Column
-	row, err := stub.GetRow(userName, columns)
+	var keys []shim.Column
+	col1 := shim.Column{Value: &shim.Column_String_{String_: userName}}	
+	keys = append(keys, col1)
+	
+	row, err := stub.GetRow("auditlog", keys)
+	
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving log for [%s]: [%s]", userName, err)
 	}
@@ -139,7 +142,6 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	time := row.Columns[3].GetBytes()
 	
 	fmt.Printf("row value : %$, %$, %$, %$", user, opr, desc, time)
-	*/
 	
 	//jsonResp := "{\"user\":\"" + user + "\",\"operation\":\"" + opr + "\"}"
 	//fmt.Printf("Query Response:%s\n", jsonResp)
