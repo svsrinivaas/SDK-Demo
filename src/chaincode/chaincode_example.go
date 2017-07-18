@@ -182,8 +182,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	rowChannel, err := stub.GetRows("auditlog", keys)
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving audit log for [%s]: [%s]", user, err)
-	}
-	
+	}	
 	rows, err := getRows(rowChannel)	
 	jsonRows, err := json.Marshal(rows)
 	if err != nil {
