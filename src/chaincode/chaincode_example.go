@@ -59,10 +59,10 @@ func createTable(stub shim.ChaincodeStubInterface) error {
         Type: shim.ColumnDefinition_STRING, Key: true}
     
 	columnTwo := shim.ColumnDefinition{Name: "operation",
-        Type: shim.ColumnDefinition_INT32, Key: false}
+        Type: shim.ColumnDefinition_STRING, Key: false}
     
 	columnThree := shim.ColumnDefinition{Name: "desc",
-        Type: shim.ColumnDefinition_INT32, Key: false}
+        Type: shim.ColumnDefinition_STRING, Key: false}
     
 	columnFour := shim.ColumnDefinition{Name: "time",
         Type: shim.ColumnDefinition_STRING, Key: false}
@@ -99,7 +99,7 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	desc = args[2]
 	time = args[3]
 
-	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
+	//fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
 	
 	// Write the state to the ledger
 	ok, err := stub.InsertRow("auditlog", shim.Row{
@@ -167,10 +167,31 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	fmt.Printf("keys : %s", keys)
 	
 	rowChannel, err := stub.GetRows("dummylog", keys)
-	
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving dummy log for [%s]: [%s]", user, err)
 	}
+	
+	rows, err := getRows(rowChannel)	
+	jsonRows, err := json.Marshal(rows)
+	if err != nil {
+		return nil, fmt.Errorf("dummy log read operation failed. Error marshaling JSON: %s", err)
+	}
+	
+	rowChannel, err = stub.GetRows("auditlog", keys)
+	if err != nil {
+		return nil, fmt.Errorf("Failed retrieving audit log for [%s]: [%s]", user, err)
+	}
+	
+	rows, err = getRows(rowChannel)	
+	jsonRows, err = json.Marshal(rows)
+	if err != nil {
+		return nil, fmt.Errorf("audit log read operation failed. Error marshaling JSON: %s", err)
+	}
+	
+    return jsonRows, nil
+}
+
+func getRows(rowChannel <-chan shim.Row) ([]shim.Row, error){
 	var rows []shim.Row
 	for {
          select {
@@ -185,6 +206,9 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
                 break
          }
     }
+	return rows, nil
+}
+
 	/*	
 	user := row.Columns[0].GetBytes()
 	opr := row.Columns[1].GetBytes()
@@ -194,15 +218,6 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	fmt.Printf("row value : %s, %s, %s, %s", user, opr, desc, time)
 	*/
 	
-	jsonRows, err := json.Marshal(rows)
-        if err != nil {
-            return nil, fmt.Errorf("log read operation failed. Error marshaling JSON: %s", err)
-        }
-
-    return jsonRows, nil
-	//return []byte(user), nil
-}
-
 func main() {
 	err := shim.Start(new(SimpleChaincode))
 	if err != nil {
