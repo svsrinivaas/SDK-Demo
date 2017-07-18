@@ -20,7 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-
+	//"bytes"
+	
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
@@ -118,14 +119,14 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 		return nil, errors.New("Invalid query function name. Expecting \"query\"")
 	}
 	var userName string
-	//var user, opr, desc, time string // Entities
-	var err error
 	userName = args[0]
 
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
 	}
 
+	/*
+	var err error
 	var columns []shim.Column
 	row, err := stub.GetRow(userName, columns)
 	if err != nil {
@@ -138,10 +139,11 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	time := row.Columns[3].GetBytes()
 	
 	fmt.Printf("row value : %$, %$, %$, %$", user, opr, desc, time)
-
+	*/
+	
 	//jsonResp := "{\"user\":\"" + user + "\",\"operation\":\"" + opr + "\"}"
 	//fmt.Printf("Query Response:%s\n", jsonResp)
-	return user, nil
+	return []byte(userName), nil
 }
 
 func main() {
