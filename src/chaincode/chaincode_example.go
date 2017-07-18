@@ -59,13 +59,13 @@ func createTable(stub shim.ChaincodeStubInterface) error {
         Type: shim.ColumnDefinition_STRING, Key: true}
     
 	columnTwo := shim.ColumnDefinition{Name: "operation",
-        Type: shim.ColumnDefinition_STRING, Key: false}
+        Type: shim.ColumnDefinition_STRING, Key: true}
     
 	columnThree := shim.ColumnDefinition{Name: "desc",
-        Type: shim.ColumnDefinition_STRING, Key: false}
+        Type: shim.ColumnDefinition_STRING, Key: true}
     
 	columnFour := shim.ColumnDefinition{Name: "time",
-        Type: shim.ColumnDefinition_STRING, Key: false}
+        Type: shim.ColumnDefinition_STRING, Key: true}
     
 	columnDefsTable = append(columnDefsTable, &columnOne)
     columnDefsTable = append(columnDefsTable, &columnTwo)
@@ -153,17 +153,32 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 		return nil, errors.New("Invalid query function name. Expecting \"query\"")
 	}
 	var user string
-	user = args[0]
+	var operation, desc, time string    // Entities
+	var err error
 
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
+	if len(args) != 4 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 4")
 	}
+
+	user = args[0]
+	operation = args[1]
+	desc = args[2]
+	time = args[3]
+	
 	fmt.Printf("query key : %s", user)
 	
-	var err error
 	var keys []shim.Column
 	col1 := shim.Column{Value: &shim.Column_String_{String_: user}}	
+	
+	col2 := shim.Column{Value: &shim.Column_String_{String_: operation}}	
+	col3 := shim.Column{Value: &shim.Column_String_{String_: desc}}	
+	col4 := shim.Column{Value: &shim.Column_String_{String_: time}}	
+	
 	keys = append(keys, col1)
+	keys = append(keys, col2)
+	keys = append(keys, col3)
+	keys = append(keys, col4)
+	
 	fmt.Printf("keys : %s", keys)
 	
 	/*
@@ -175,11 +190,11 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	rows, err := getRows(rowChannel)	
 	jsonRows, err := json.Marshal(rows)
 	if err != nil {
-		return nil, fmt.Errorf("dummy log read operation failed. Error marshaling JSON: %s", err)
+		return nil, fmt.Errorf("dummy log read operation failed. Error marshalling JSON: %s", err)
 	}
 	*/
 	
-	rowChannel, err := stub.GetRows("dummylog", keys)
+	rowChannel, err := stub.GetRows("auditlog", keys)
 	if err != nil {
 		return nil, fmt.Errorf("Failed retrieving audit log for [%s]: [%s]", user, err)
 	}	
