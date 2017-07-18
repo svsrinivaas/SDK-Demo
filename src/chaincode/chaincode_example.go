@@ -48,6 +48,7 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 
 	// create a table with 4 columns with user as the primary key
 	createTable(stub)
+	createTableSingleCol(stub)
 	return nil, nil
 }
 
@@ -73,6 +74,16 @@ func createTable(stub shim.ChaincodeStubInterface) error {
     return stub.CreateTable("auditlog", columnDefsTable)
 }
 
+func createTableSingleCol(stub shim.ChaincodeStubInterface) error {
+    var columnDefsTable []*shim.ColumnDefinition
+	
+    columnOne := shim.ColumnDefinition{Name: "user",
+        Type: shim.ColumnDefinition_STRING, Key: true}
+    
+	columnDefsTable = append(columnDefsTable, &columnOne)
+
+    return stub.CreateTable("dummylog", columnDefsTable)
+}
 
 // Transaction makes an entry of audit log 
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
@@ -100,7 +111,17 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 	})
 
 	if !ok && err == nil {
-		return nil, errors.New("User log already exists.")
+		return nil, errors.New("Audit log creation failed.")
+	}
+	
+	// Write the state to the ledger
+	ok2, err2 := stub.InsertRow("dummylog", shim.Row{
+		Columns: []*shim.Column{
+			&shim.Column{Value: &shim.Column_String_{String_: user}}},
+	})
+
+	if !ok2 && err2 == nil {
+		return nil, errors.New("Dummy log creation failed.")
 	}
 
 	fmt.Printf("Invoke...done!")
@@ -145,10 +166,10 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	keys = append(keys, col1)
 	fmt.Printf("keys : %s", keys)
 	
-	rowChannel, err := stub.GetRows("auditlog", keys)
+	rowChannel, err := stub.GetRows("dummylog", keys)
 	
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving log for [%s]: [%s]", user, err)
+		return nil, fmt.Errorf("Failed retrieving dummy log for [%s]: [%s]", user, err)
 	}
 	var rows []shim.Row
 	for {
@@ -175,7 +196,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	
 	jsonRows, err := json.Marshal(rows)
         if err != nil {
-            return nil, fmt.Errorf("auditlog read operation failed. Error marshaling JSON: %s", err)
+            return nil, fmt.Errorf("log read operation failed. Error marshaling JSON: %s", err)
         }
 
     return jsonRows, nil
