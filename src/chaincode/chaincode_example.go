@@ -45,21 +45,33 @@ func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string
 	
 	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
 
-	// Write the state to the ledger
-	/*ok, err = stub.InsertRow(user, shim.Row{
-		Columns: []*shim.Column{
-			&shim.Column{Value: &shim.Column_String_{String_: user}},
-			&shim.Column{Value: &shim.Column_String{String_: operation}},
-			&shim.Column{Value: &shim.Column_String_{String_: desc}},
-			&shim.Column{Value: &shim.Column_String{String_: time}}},
-	})
-    
-	err = stub.PutState(EVENT_COUNTER, []byte("1"))
-	if err != nil {
-		return nil, err
-	}*/
+	// create a table with 4 columns with user as the primary key
+	createTable(stub)
 	return nil, nil
 }
+
+func createTable(stub shim.ChaincodeStubInterface) error {
+    var columnDefsTable []*shim.ColumnDefinition
+	
+    columnOne := shim.ColumnDefinition{Name: "user",
+        Type: shim.ColumnDefinition_STRING, Key: true}
+    
+	columnTwo := shim.ColumnDefinition{Name: "operation",
+        Type: shim.ColumnDefinition_INT32, Key: false}
+    
+	columnThree := shim.ColumnDefinition{Name: "desc",
+        Type: shim.ColumnDefinition_INT32, Key: false}
+    
+	columnFour := shim.ColumnDefinition{Name: "time",
+        Type: shim.ColumnDefinition_STRING, Key: false}
+    
+	columnDefsTable = append(columnDefsTable, &columnOne)
+    columnDefsTable = append(columnDefsTable, &columnTwo)
+    columnDefsTable = append(columnDefsTable, &columnThree)
+    columnDefsTable = append(columnDefsTable, &columnFour)
+    return stub.CreateTable("auditlog", columnDefsTable)
+}
+
 
 // Transaction makes an entry of audit log 
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
