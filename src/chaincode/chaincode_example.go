@@ -124,11 +124,13 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	if len(args) != 1 {
 		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
 	}
-
+	fmt.Printf("query key : %s", userName)
+	
 	var err error
 	var keys []shim.Column
 	col1 := shim.Column{Value: &shim.Column_String_{String_: userName}}	
 	keys = append(keys, col1)
+	fmt.Printf("keys : %s", keys)
 	
 	row, err := stub.GetRow("auditlog", keys)
 	
@@ -141,7 +143,7 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	desc := row.Columns[2].GetBytes()
 	time := row.Columns[3].GetBytes()
 	
-	fmt.Printf("row value : %$, %$, %$, %$", user, opr, desc, time)
+	fmt.Printf("row value : %s, %s, %s, %s", user, opr, desc, time)
 	
 	//jsonResp := "{\"user\":\"" + user + "\",\"operation\":\"" + opr + "\"}"
 	//fmt.Printf("Query Response:%s\n", jsonResp)
