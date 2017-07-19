@@ -18,225 +18,78 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
-	"encoding/json"
+	//"fmt"
+	//"strconv"
+	//"encoding/json"
 	//"bytes"
 	
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
-// SimpleChaincode example simple Chaincode implementation
+var logger = shim.NewLogger("mylogger")
+
+// SimpleChaincode aduti trail Chaincode implementation
 type SimpleChaincode struct {
 }
+
+//log data model
+type LogInfo struct {
+	userId 		string `json:"userId"`
+	operation  	string `json:"operation"`
+	desc     	string `json:"desc"`
+	createdTime	string `json:"time"`
+}
+
 var EVENT_COUNTER = "event_counter"
 func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	var user, operation, desc, time string    // Entities
-	//var err error
-
-	if len(args) != 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 4")
-	}
-
-	// Initialize the chaincode
-	user = args[0]
-	operation = args[1]
-	desc = args[2]
-	time = args[3]
-	
-	fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
-
-	// create a table with 4 columns with user as the primary key
-	createTable(stub)
-	createTableSingleCol(stub)
+	logger.Info("Successfully initialized log chain") 
 	return nil, nil
-}
-
-func createTable(stub shim.ChaincodeStubInterface) error {
-    var columnDefsTable []*shim.ColumnDefinition
-	
-    columnOne := shim.ColumnDefinition{Name: "user",
-        Type: shim.ColumnDefinition_STRING, Key: true}
-    
-	columnTwo := shim.ColumnDefinition{Name: "operation",
-        Type: shim.ColumnDefinition_STRING, Key: true}
-    
-	columnThree := shim.ColumnDefinition{Name: "desc",
-        Type: shim.ColumnDefinition_STRING, Key: true}
-    
-	columnFour := shim.ColumnDefinition{Name: "time",
-        Type: shim.ColumnDefinition_STRING, Key: true}
-    
-	columnDefsTable = append(columnDefsTable, &columnOne)
-    columnDefsTable = append(columnDefsTable, &columnTwo)
-    columnDefsTable = append(columnDefsTable, &columnThree)
-    columnDefsTable = append(columnDefsTable, &columnFour)
-    return stub.CreateTable("auditlog", columnDefsTable)
-}
-
-func createTableSingleCol(stub shim.ChaincodeStubInterface) error {
-    var columnDefsTable []*shim.ColumnDefinition
-	
-    columnOne := shim.ColumnDefinition{Name: "user",
-        Type: shim.ColumnDefinition_STRING, Key: true}
-    
-	columnDefsTable = append(columnDefsTable, &columnOne)
-
-    return stub.CreateTable("dummylog", columnDefsTable)
 }
 
 // Transaction makes an entry of audit log 
 func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	var user, operation, desc, time string    // Entities
-	var err error
-
-	if len(args) != 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 4")
+	if len(args) != 2 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 2 (userId, log info) ")
 	}
 
-	user = args[0]
-	operation = args[1]
-	desc = args[2]
-	time = args[3]
-
-	//fmt.Printf("user = %s, operation = %s, desc = %s, time = %s \n", user, operation, desc, time)
+	// Initialize the chaincode
+	var user = args[0]
+	var logInfo = args[1]
 	
-	// Write the state to the ledger
-	ok, err := stub.InsertRow("auditlog", shim.Row{
-		Columns: []*shim.Column{
-			&shim.Column{Value: &shim.Column_String_{String_: user}},
-			&shim.Column{Value: &shim.Column_String_{String_: operation}},
-			&shim.Column{Value: &shim.Column_String_{String_: desc}},
-			&shim.Column{Value: &shim.Column_String_{String_: time}}},
-	})
-
-	if !ok && err == nil {
-		return nil, errors.New("Audit log creation failed.")
-	}
-	
-	// Write the state to the ledger
-	ok2, err2 := stub.InsertRow("dummylog", shim.Row{
-		Columns: []*shim.Column{
-			&shim.Column{Value: &shim.Column_String_{String_: user}}},
-	})
-
-	if !ok2 && err2 == nil {
-		return nil, errors.New("Dummy log creation failed.")
-	}
-
-	fmt.Printf("Invoke...done!")
-	
-	//Event based
-    b, err := stub.GetState(EVENT_COUNTER)
-	if err != nil {
-		return nil, errors.New("Failed to get state")
-	}
-	noevts, _ := strconv.Atoi(string(b))
-
-	tosend := "Event Counter is " + string(b)
-
-	err = stub.PutState(EVENT_COUNTER, []byte(strconv.Itoa(noevts+1)))
-	if err != nil {
-		return nil, err
-	}
-
-	err = stub.SetEvent("evtsender", []byte(tosend))
-	if err != nil {
-		return nil, err
-        }
+	err := stub.PutState(user, []byte(logInfo)) 
+	if err != nil { 
+		logger.Error("Could not save log details to ledger", err) 
+		return nil, err 
+	} 
+		
+	logger.Info("Successfully saved log details") 
 	return nil, nil
 }
 
 // Query callback representing the query of a chaincode
 func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	if function != "query" {
-		return nil, errors.New("Invalid query function name. Expecting \"query\"")
-	}
-	var user string
-	var operation, desc, time string    // Entities
-	var err error
 
-	if len(args) != 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 4")
+	logger.Debug("Entering Get Log Details")
+
+	if len(args) < 1 {
+		logger.Error("Invalid number of arguments, expected userId")
+		return nil, errors.New("Missing user Id")
 	}
 
-	user = args[0]
-	operation = args[1]
-	desc = args[2]
-	time = args[3]
-	
-	fmt.Printf("query key : %s", user)
-	
-	var keys []shim.Column
-	col1 := shim.Column{Value: &shim.Column_String_{String_: user}}	
-	
-	col2 := shim.Column{Value: &shim.Column_String_{String_: operation}}	
-	col3 := shim.Column{Value: &shim.Column_String_{String_: desc}}	
-	col4 := shim.Column{Value: &shim.Column_String_{String_: time}}	
-	
-	keys = append(keys, col1)
-	keys = append(keys, col2)
-	keys = append(keys, col3)
-	keys = append(keys, col4)
-	
-	fmt.Printf("keys : %s", keys)
-	
-	/*
-	rowChannel, err := stub.GetRows("dummylog", keys)
+	var userId = args[0]
+	bytes, err := stub.GetState(userId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving dummy log for [%s]: [%s]", user, err)
+		logger.Error("Could not fetch log details with id " + userId + " from ledger", err)
+		return nil, err
 	}
-	
-	rows, err := getRows(rowChannel)	
-	jsonRows, err := json.Marshal(rows)
-	if err != nil {
-		return nil, fmt.Errorf("dummy log read operation failed. Error marshalling JSON: %s", err)
-	}
-	*/
-	
-	rowChannel, err := stub.GetRows("auditlog", keys)
-	if err != nil {
-		return nil, fmt.Errorf("Failed retrieving audit log for [%s]: [%s]", user, err)
-	}	
-	rows, err := getRows(rowChannel)	
-	jsonRows, err := json.Marshal(rows)
-	if err != nil {
-		return nil, fmt.Errorf("audit log read operation failed. Error marshaling JSON: %s", err)
-	}
-	
-    return jsonRows, nil
+	return bytes, nil
 }
-
-func getRows(rowChannel <-chan shim.Row) ([]shim.Row, error){
-	var rows []shim.Row
-	for {
-         select {
-            case row, ok := <-rowChannel:
-                if !ok {
-                    rowChannel = nil
-                } else {
-                    rows = append(rows, row)
-                }
-            }
-            if rowChannel == nil {
-                break
-         }
-    }
-	return rows, nil
-}
-
-	/*	
-	user := row.Columns[0].GetBytes()
-	opr := row.Columns[1].GetBytes()
-	desc := row.Columns[2].GetBytes()
-	time := row.Columns[3].GetBytes()
-	
-	fmt.Printf("row value : %s, %s, %s, %s", user, opr, desc, time)
-	*/
 	
 func main() {
 	err := shim.Start(new(SimpleChaincode))
 	if err != nil {
-		fmt.Printf("Error starting Simple chaincode: %s", err)
+		logger.Error("Could not start SampleChaincode")
+	} else {
+		logger.Info("SampleChaincode successfully started")
 	}
 }
